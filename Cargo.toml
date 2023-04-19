@@ -1,10 +1,16 @@
 [package]
-name = "forward_methods"
+name = "forward-methods"
 version = "0.0.0"
+edition = "2021"
+
 authors = ["Pierre Fouilloux <pfxdev@pm.me>"]
-description = "A `cargo generate` template for quick-starting a procedural macro crate"
-keywords = ["template", "proc_macro", "procmacro"]
-edition = "2018"
+description = "A derive macro for forwarding methods from composed objects"
+keywords = ["proc_macro", "procmacro", "method", "forwarding", "composition"]
+categories = ["rust-patterns"]
+
+repository = "https://github.com/pfouilloux/forward-methods"
+readme = "README.md"
+license-file = "LICENSE"
 
 [lib]
 proc-macro = true
