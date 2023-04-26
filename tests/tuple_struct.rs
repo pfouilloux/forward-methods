@@ -1,9 +1,14 @@
 use crate::stubs::{Message, Printer};
+use forward_methods::fwd;
 
 mod stubs;
 
-#[derive(forward_methods::Composite)]
 struct CompositeStruct(Message, Printer);
+
+impl CompositeStruct {
+    fwd!(get_message(&self) -> String => self.0);
+    fwd!(println(&self, msg: impl Into<String>) => self.1);
+}
 
 #[test]
 fn should_forward_public_methods_from_all_fields_by_default() {
