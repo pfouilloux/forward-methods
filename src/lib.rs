@@ -1,16 +1,21 @@
 use proc_macro::TokenStream;
 
-use quote::quote;
+use syn::parse_macro_input;
 
+mod implement;
+mod model;
 mod parse;
 
 #[proc_macro]
 pub fn fwd(input: TokenStream) -> TokenStream {
-    // let decl = parse_macro_input!(input as parse::ForwardDecl);
+    parse_macro_input!(input as model::FwdDecl)
+        .implement()
+        .into()
+}
 
-    let tokens = quote! {
-        decl
-    };
-
-    tokens.into()
+#[proc_macro]
+pub fn fwd_pub(input: TokenStream) -> TokenStream {
+    parse_macro_input!(input as model::FwdDecl)
+        .implement_pub()
+        .into()
 }

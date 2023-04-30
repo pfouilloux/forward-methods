@@ -1,11 +1,7 @@
 use syn::parse::{Parse, ParseStream};
 use syn::{Error, Result, Token};
 
-use crate::parse::Method;
-
-pub enum Delegate {
-    MethodList(Vec<Method>),
-}
+use crate::model::{Delegate, Method};
 
 impl Parse for Delegate {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -34,15 +30,16 @@ impl Parse for Delegate {
 mod tests {
     use proc_macro2::TokenStream;
     use quote::quote;
-    use std::fmt::{Debug, Formatter};
     use test_case::test_case;
 
-    use crate::parse::Delegate;
-    use crate::parse::Method;
+    use crate::model::{Delegate, MethodBuilder};
 
     #[test_case(
         quote!(fn test_a(self), fn test_b(self)),
-        Delegate::MethodList(vec![Method::new("test_a", vec!["self"], None), Method::new("test_b", vec!["self"], None)]);
+        Delegate::MethodList(vec![
+            MethodBuilder::default().ident("test_a").rcv().build().unwrap(),
+            MethodBuilder::default().ident("test_b").rcv().build().unwrap()
+        ]);
         "should parse delegate method list"
     )]
     fn should_parse_delegate(input: TokenStream, want: Delegate) {
@@ -60,28 +57,5 @@ mod tests {
         let err = syn::parse2::<Delegate>(input).unwrap_err();
 
         assert_eq!(err.to_string(), want)
-    }
-
-    impl PartialEq for Delegate {
-        fn eq(&self, other: &Self) -> bool {
-            match (self, other) {
-                (Delegate::MethodList(a), Delegate::MethodList(b)) => a == b,
-            }
-        }
-    }
-
-    impl Debug for Delegate {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            match self {
-                Delegate::MethodList(methods) => {
-                    let meths = methods
-                        .iter()
-                        .map(|x| format!("{:?}", x))
-                        .collect::<Vec<String>>()
-                        .join(", ");
-                    write!(f, "[{}]", meths)
-                }
-            }
-        }
     }
 }

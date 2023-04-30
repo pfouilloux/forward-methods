@@ -6,6 +6,9 @@ impl Message {
     pub fn get_message(&self) -> String {
         self.0.to_string()
     }
+    pub fn get_len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 impl Printer {

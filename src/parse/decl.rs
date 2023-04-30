@@ -2,12 +2,7 @@ use proc_macro2::Ident;
 use syn::parse::{Parse, ParseStream};
 use syn::{Error, Member, Result, Token};
 
-use crate::parse::Delegate;
-
-pub struct FwdDecl {
-    delegate: Delegate,
-    target: Member,
-}
+use crate::model::{Delegate, FwdDecl};
 
 impl Parse for FwdDecl {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -32,72 +27,36 @@ impl Parse for FwdDecl {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::{Debug, Formatter};
-
-    use proc_macro2::{Span, TokenStream};
-    use quote::{quote, ToTokens};
-    use syn::{Index, Member};
+    use proc_macro2::TokenStream;
+    use quote::quote;
     use test_case::test_case;
 
-    use crate::{
-        parse::tests::new_ident,
-        parse::{Delegate, FwdDecl, Method},
-    };
+    use crate::model::{FwdDecl, FwdDeclBuilder, MethodBuilder};
 
     #[test_case(
-        quote!(fn test(self) to self.tester),
-        FwdDecl::new(Delegate::MethodList(vec![Method::new("test", vec!["self"], None)]), Member::Named(new_ident("tester")));
-        "should parse forwarding with name"
+        quote!(fn test(self) to self.tester), FwdDeclBuilder::default().named_target("tester").with_method(
+            MethodBuilder::default().ident("test").rcv()
+        ); "should parse forwarding with name"
     )]
     #[test_case(
-        quote!(fn test(self) to self.42),
-        FwdDecl::new(Delegate::MethodList(vec![Method::new("test", vec!["self"], None)]), Member::Unnamed(new_index(42)));
-        "should parse forwarding with numeric id"
+        quote!(fn test(self) to self.42), FwdDeclBuilder::default().unnamed_target(42).with_method(
+            MethodBuilder::default().ident("test").rcv()
+        ); "should parse forwarding with numeric id"
     )]
-    fn should_parse_fwd_decl(input: TokenStream, want: FwdDecl) {
+    fn should_parse_fwd_decl(input: TokenStream, want: &FwdDeclBuilder) {
         let decl = syn::parse2::<FwdDecl>(input).unwrap();
 
-        assert_eq!(decl, want)
+        assert_eq!(decl, want.build().unwrap())
     }
 
     #[test_case(
-    quote!(fn test(self) ot self.tester),
-    "malformed delegation: missing 'to' between delegate and target";
-    "should require 'to' between delegate and target"
+        quote!(fn test(self) ot self.tester),
+        "malformed delegation: missing 'to' between delegate and target";
+        "should require 'to' between delegate and target" 
     )]
     fn should_fail_to_parse_fwd_decl(input: TokenStream, want: &str) {
         let err = syn::parse2::<FwdDecl>(input).unwrap_err();
 
         assert_eq!(err.to_string(), want)
-    }
-
-    impl FwdDecl {
-        fn new(delegate: Delegate, target: Member) -> Self {
-            FwdDecl { delegate, target }
-        }
-    }
-
-    impl PartialEq for FwdDecl {
-        fn eq(&self, other: &Self) -> bool {
-            self.delegate == other.delegate && self.target == other.target
-        }
-    }
-
-    impl Debug for FwdDecl {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            write!(
-                f,
-                "{:?} => {}",
-                self.delegate,
-                self.target.to_token_stream()
-            )
-        }
-    }
-
-    pub fn new_index(idx: u32) -> Index {
-        Index {
-            index: idx,
-            span: Span::call_site(),
-        }
     }
 }
