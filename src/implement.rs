@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{Pat, PatType, Receiver};
+use syn::{Pat, PatType, Path, Receiver, ReturnType, Type};
 
-use crate::model::{Delegate, FwdDecl};
+use crate::model::{Delegate, FwdDecl, Method};
 
 impl FwdDecl {
     pub fn implement(&self) -> TokenStream {
@@ -26,7 +26,7 @@ impl FwdDecl {
                 let arg_names = quote_arg_names(&meth.args);
                 let ret = &meth.ret;
 
-                let clone = if meth.rcv.reference.is_some() {
+                let clone = if is_rcv_ref(meth) && is_ret_val_not_option(meth) {
                     quote!(.clone())
                 } else {
                     quote!()
@@ -50,6 +50,30 @@ fn quote_args(rcv: &Receiver, args: &Vec<PatType>) -> TokenStream {
 fn quote_arg_names(args: &Vec<PatType>) -> TokenStream {
     let pats: Vec<Box<Pat>> = args.iter().map(|x| x.pat.clone()).collect();
     quote!(#(#pats),*)
+}
+
+fn is_rcv_ref(meth: &Method) -> bool {
+    meth.rcv.reference.is_some()
+}
+
+fn is_ret_val_not_option(meth: &Method) -> bool {
+    if let ReturnType::Type(_, typ) = meth.ret.clone() {
+        !is_option_type(typ.as_ref())
+    } else {
+        true
+    }
+}
+
+fn is_option_type(typ: &Type) -> bool {
+    match typ {
+        Type::Path(x) => has_option_token(&x.path),
+        Type::Reference(x) => is_option_type(x.elem.as_ref()),
+        _ => false,
+    }
+}
+
+fn has_option_token(path: &Path) -> bool {
+    path.segments.iter().any(|x| x.ident == "Option")
 }
 
 #[cfg(test)]
@@ -90,6 +114,27 @@ mod tests {
         ),
         quote!(fn test(&self) -> String { self.42.test().clone() });
         "should implement method with return value forwarding to unnamed member reference"
+    )]
+    #[test_case(
+        FwdDeclBuilder::default().unnamed_target(42).with_method(
+            MethodBuilder::default().ident("test").ref_rcv().ret("-> Option<String>")
+        ),
+        quote!(fn test(&self) -> Option<String> { self.42.test() });
+        "should implement method with option return value forwarding to unnamed member reference"
+    )]
+    #[test_case(
+        FwdDeclBuilder::default().unnamed_target(42).with_method(
+            MethodBuilder::default().ident("test").ref_rcv().ret("-> &Option<String>")
+        ),
+        quote!(fn test(&self) -> &Option<String> { self.42.test() });
+        "should implement method with option reference return value forwarding to unnamed member reference"
+    )]
+    #[test_case(
+        FwdDeclBuilder::default().unnamed_target(42).with_method(
+            MethodBuilder::default().ident("test").ref_rcv().ret("-> &mut Option<String>")
+        ),
+        quote!(fn test(&self) -> &mut Option<String> { self.42.test() });
+        "should implement method with mutable option reference return value forwarding to unnamed member reference"
     )]
     fn should_write_forwarding_impl(input: &FwdDeclBuilder, want: TokenStream) {
         let decl = input.build().unwrap();
